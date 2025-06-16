@@ -12,7 +12,7 @@ export interface Player {
   jerseyNumber: number;
   position: string;
   teamId: string;
-  stats: Record<string, number | string | null>;
+  stats: Record<string, string | number | boolean | null>;
   college?: string;
   hometown?: string;
   age: number;
