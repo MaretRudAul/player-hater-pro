@@ -4,9 +4,13 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 })
 
+interface PlayerStats {
+  [key: string]: string | number | boolean | null;
+}
+
 export const generateInsults = async (
   playerName: string,
-  playerStats: any,
+  playerStats: PlayerStats,
   playerBio: string,
   recentNews: string[]
 ): Promise<string[]> => {
