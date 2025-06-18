@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Insults not found' }, { status: 404 })
     }
 
-    const insultsArray = JSON.parse(insults)
+    const insultsArray = JSON.parse(insults as string)
     const insultIndex = insultsArray.findIndex((i: any) => i.id === insultId)
     
     if (insultIndex === -1) {
