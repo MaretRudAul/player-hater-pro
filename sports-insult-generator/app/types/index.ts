@@ -22,11 +22,17 @@ export interface Player {
 export interface Insult {
   id: string;
   playerId: string;
+  teamId: string;
   text: string;
   upvotes: number;
   downvotes: number;
   createdAt: string;
   weekId: string; // Format: YYYY-WW
+  player: {
+    name: string;
+    position: string;
+    team: string;
+  };
 }
 
 export interface PlayerNews {

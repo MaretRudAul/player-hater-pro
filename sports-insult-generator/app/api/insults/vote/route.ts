@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import redis, { CACHE_KEYS } from '../../../lib/redis'
+import { Insult } from '../../../types'
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,8 +12,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Insults not found' }, { status: 404 })
     }
 
-    const insultsArray = JSON.parse(insults as string)
-    const insultIndex = insultsArray.findIndex((i: any) => i.id === insultId)
+    const insultsArray: Insult[] = JSON.parse(insults as string)
+    const insultIndex = insultsArray.findIndex((i: Insult) => i.id === insultId)
     
     if (insultIndex === -1) {
       return NextResponse.json({ error: 'Insult not found' }, { status: 404 })
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function updateTopInsults(playerId: string, weekId: string, insults: any[]) {
+async function updateTopInsults(playerId: string, weekId: string, insults: Insult[]) {
   const topInsults = insults
     .sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes))
     .slice(0, 5)

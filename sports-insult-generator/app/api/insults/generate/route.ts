@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateInsults } from '@/app/lib/openai'
-import { fetchPlayerDetails, fetchPlayerNews, fetchTeamRoster } from '@/app/lib/espn-api'
+import { fetchPlayerDetails, fetchPlayerNews, fetchTeamRoster, fetchTeams } from '@/app/lib/espn-api'
 import redis, { CACHE_KEYS, CACHE_TTL } from '@/app/lib/redis'
 import { getWeekId } from '@/app/lib/utils'
 import { PlayerNews } from '@/app/types'
@@ -36,6 +36,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Fetch team info to get team name
+    const teams = await fetchTeams(sport)
+    const team = teams.find((t) => t.id === teamId)
+    const teamName = team?.name || 'Unknown Team'
+
     // Fetch additional player details
     const playerDetails = await fetchPlayerDetails(sport, playerId)
 
@@ -66,7 +71,7 @@ export async function POST(request: NextRequest) {
       player: {
         name: player.name,
         position: player.position || 'Unknown',
-        team: 'Unknown Team' // We'd need team info from another API call
+        team: teamName
       }
     }
 
