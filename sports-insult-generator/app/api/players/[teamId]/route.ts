@@ -1,27 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import redis, { CACHE_KEYS, CACHE_TTL } from '../../../lib/redis'
+// import redis, { CACHE_KEYS, CACHE_TTL } from '../../../lib/redis'
 import { fetchTeamRoster } from '../../../lib/espn-api'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   const { searchParams } = new URL(request.url)
   const sport = searchParams.get('sport') || 'nfl'
-  const { teamId } = params
+  const { teamId } = await params
 
   try {
-    // Check cache first
-    const cached = await redis.get(CACHE_KEYS.PLAYERS(teamId))
-    if (cached) {
-      return NextResponse.json(cached)
-    }
+    // TEMPORARILY BYPASS CACHE FOR DEBUGGING
+    // const cached = await redis.get(CACHE_KEYS.PLAYERS(teamId))
+    // if (cached) {
+    //   return NextResponse.json(cached)
+    // }
 
     // Fetch from ESPN API
     const players = await fetchTeamRoster(sport, teamId)
     
-    // Cache the results
-    await redis.setex(CACHE_KEYS.PLAYERS(teamId), CACHE_TTL.PLAYERS, JSON.stringify(players))
+    // Cache the results (temporarily disabled)
+    // await redis.setex(CACHE_KEYS.PLAYERS(teamId), CACHE_TTL.PLAYERS, JSON.stringify(players))
     
     return NextResponse.json(players)
   } catch (error) {

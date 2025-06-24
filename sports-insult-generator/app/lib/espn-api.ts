@@ -34,16 +34,31 @@ export const fetchTeamRoster = async (sport: string, teamId: string): Promise<Pl
   try {
     const sportPath = SPORT_MAPPING[sport] || sport
     const response = await axios.get(`${ESPN_BASE_URL}/${sportPath}/teams/${teamId}/roster`)
-    return response.data.athletes.map((athlete: any) => ({
-      id: athlete.id,
-      name: athlete.displayName,
-      jerseyNumber: parseInt(athlete.jersey) || 0,
-      position: athlete.position?.abbreviation || 'N/A',
-      teamId,
-      stats: athlete.statistics || {},
-      college: athlete.college?.name,
-      age: athlete.age,
-    }))
+    
+    // Handle the nested structure where athletes are grouped by position type
+    const athleteGroups = response.data?.athletes || []
+    const allPlayers: Player[] = []
+    
+    // Iterate through each position group (offense, defense, specialTeam, etc.)
+    for (const group of athleteGroups) {
+      const players = group.items || []
+      
+      // Map each player in the current group
+      const groupPlayers = players.map((athlete: any) => ({
+        id: athlete.id,
+        name: athlete.displayName || athlete.fullName || athlete.name,
+        jerseyNumber: parseInt(athlete.jersey) || 0,
+        position: athlete.position?.abbreviation || athlete.position?.name || 'N/A',
+        teamId,
+        stats: (athlete.statistics || {}) as Record<string, string | number | boolean | null>,
+        college: athlete.college?.name,
+        age: athlete.age,
+      }))
+      
+      allPlayers.push(...groupPlayers)
+    }
+    
+    return allPlayers
   } catch (error) {
     console.error(`Error fetching roster for team ${teamId}:`, error)
     return []
