@@ -71,40 +71,42 @@ export default function InsultCard({
   const voteRatio = totalVotes > 0 ? (localVotes.upvotes / totalVotes) * 100 : 0;
 
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-6 border border-gray-200">
+    <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/10 p-8 hover:shadow-purple-500/20 transition-all duration-500 transform hover:scale-[1.02]">
       {/* Player Info Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-4">
+          <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
             #{insult.playerId.slice(-2)}
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">{insult.player.name}</h3>
-            <p className="text-sm text-gray-600">{insult.player.team}</p>
+            <h3 className="font-bold text-white text-xl">{insult.player.name}</h3>
+            <p className="text-purple-300 font-medium">{insult.player.team}</p>
           </div>
         </div>
-        <div className="text-xs text-gray-500">
+        <div className="text-sm text-slate-400 bg-white/5 px-3 py-1 rounded-full">
           {formatDistanceToNow(new Date(insult.createdAt), { addSuffix: true })}
         </div>
       </div>
 
       {/* Insult Content */}
-      <div className="mb-4">
-        <p className="text-gray-800 leading-relaxed text-lg italic">
-          &ldquo;{insult.text}&rdquo;
-        </p>
+      <div className="mb-8">
+        <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+          <p className="text-white leading-relaxed text-lg font-medium">
+            &ldquo;{insult.text}&rdquo;
+          </p>
+        </div>
       </div>
 
       {/* Vote Ratio Bar */}
       {totalVotes > 0 && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-            <span>Approval Rating</span>
-            <span>{Math.round(voteRatio)}%</span>
+        <div className="mb-6">
+          <div className="flex items-center justify-between text-sm text-slate-300 mb-3">
+            <span className="font-medium">🔥 Roast Rating</span>
+            <span className="font-bold text-lg">{Math.round(voteRatio)}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
             <div 
-              className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full transition-all duration-300"
+              className="bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 h-3 rounded-full transition-all duration-700 shadow-lg"
               style={{ width: `${voteRatio}%` }}
             ></div>
           </div>
@@ -118,16 +120,16 @@ export default function InsultCard({
             <button
               onClick={() => handleVote('up')}
               disabled={isVoting || votingState !== null}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+              className={`group flex items-center space-x-3 px-6 py-3 rounded-2xl font-bold transition-all duration-300 transform hover:scale-110 ${
                 userVote === 'up'
-                  ? 'bg-green-100 text-green-700 border border-green-300'
-                  : 'bg-gray-50 text-gray-600 hover:bg-green-50 hover:text-green-600 border border-gray-200'
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-xl shadow-green-500/30 ring-4 ring-green-400/30'
+                  : 'bg-white/10 backdrop-blur-sm text-white border-2 border-white/20 hover:border-green-400/50 hover:bg-green-500/20'
               } ${
-                isVoting || votingState ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-sm'
+                isVoting || votingState ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl'
               }`}
             >
               <svg 
-                className={`w-4 h-4 ${votingState === 'up' ? 'animate-pulse' : ''}`} 
+                className={`w-5 h-5 ${votingState === 'up' ? 'animate-bounce' : 'group-hover:scale-125 transition-transform'}`} 
                 fill="currentColor" 
                 viewBox="0 0 20 20"
               >
@@ -137,22 +139,22 @@ export default function InsultCard({
                   clipRule="evenodd" 
                 />
               </svg>
-              <span className="font-medium">{localVotes.upvotes}</span>
+              <span className="text-lg">{localVotes.upvotes}</span>
             </button>
 
             <button
               onClick={() => handleVote('down')}
               disabled={isVoting || votingState !== null}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+              className={`group flex items-center space-x-3 px-6 py-3 rounded-2xl font-bold transition-all duration-300 transform hover:scale-110 ${
                 userVote === 'down'
-                  ? 'bg-red-100 text-red-700 border border-red-300'
-                  : 'bg-gray-50 text-gray-600 hover:bg-red-50 hover:text-red-600 border border-gray-200'
+                  ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-xl shadow-red-500/30 ring-4 ring-red-400/30'
+                  : 'bg-white/10 backdrop-blur-sm text-white border-2 border-white/20 hover:border-red-400/50 hover:bg-red-500/20'
               } ${
-                isVoting || votingState ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-sm'
+                isVoting || votingState ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl'
               }`}
             >
               <svg 
-                className={`w-4 h-4 ${votingState === 'down' ? 'animate-pulse' : ''}`} 
+                className={`w-5 h-5 ${votingState === 'down' ? 'animate-bounce' : 'group-hover:scale-125 transition-transform'}`} 
                 fill="currentColor" 
                 viewBox="0 0 20 20"
               >
@@ -162,23 +164,23 @@ export default function InsultCard({
                   clipRule="evenodd" 
                 />
               </svg>
-              <span className="font-medium">{localVotes.downvotes}</span>
+              <span className="text-lg">{localVotes.downvotes}</span>
             </button>
           </div>
 
           {/* Total Votes */}
-          <div className="text-sm text-gray-500">
-            {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}
+          <div className="text-slate-300 font-medium bg-white/5 px-4 py-2 rounded-xl">
+            💬 {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}
           </div>
         </div>
       )}
 
       {/* Loading State for Voting */}
       {(isVoting || votingState) && (
-        <div className="absolute inset-0 bg-white bg-opacity-50 rounded-lg flex items-center justify-center">
-          <div className="flex items-center space-x-2 text-gray-600">
-            <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-            <span className="text-sm">Voting...</span>
+        <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm rounded-3xl flex items-center justify-center">
+          <div className="flex items-center space-x-3 text-white bg-white/10 px-6 py-3 rounded-2xl border border-white/20">
+            <div className="w-6 h-6 border-3 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
+            <span className="font-medium">Casting vote...</span>
           </div>
         </div>
       )}
