@@ -1,5 +1,4 @@
 'use client'
-import { useState } from 'react'
 import useSWR from 'swr'
 import { Player, Team } from '../types'
 
@@ -11,7 +10,6 @@ interface PlayerSelectorProps {
 }
 
 export default function PlayerSelector({ team, onPlayerSelect }: PlayerSelectorProps) {
-  const [selectedNumber, setSelectedNumber] = useState<number | null>(null)
   const { data: players, error, isLoading } = useSWR(
     `/api/players/${team.id}?sport=${team.sport}`,
     fetcher
@@ -38,61 +36,72 @@ export default function PlayerSelector({ team, onPlayerSelect }: PlayerSelectorP
     )
   }
 
-  const uniqueNumbers: number[] = [...new Set((players?.map((p: Player) => p.jerseyNumber) ?? []) as number[])].sort((a, b) => a - b)
-  const playersWithNumber = selectedNumber ? players?.filter((p: Player) => p.jerseyNumber === selectedNumber) : []
-
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-2xl font-bold text-white mb-6">Select Jersey Number</h3>
-        <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-3">
-          {uniqueNumbers.map((number: number) => (
+        <h3 className="text-2xl font-bold text-white mb-6">Choose Your Target</h3>
+        <p className="text-slate-300 text-lg mb-8">Select a player from the {team.name} roster</p>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-3">
+          {players?.map((player: Player) => (
             <button
-              key={number}
-              onClick={() => setSelectedNumber(number)}
-              className={`aspect-square p-3 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-110 ${
-                selectedNumber === number 
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-xl shadow-purple-500/50 ring-4 ring-purple-400/30' 
-                  : 'bg-white/10 backdrop-blur-sm text-white border-2 border-white/20 hover:border-purple-400/50 hover:bg-white/20'
-              }`}
+              key={player.id}
+              onClick={() => onPlayerSelect(player)}
+              className="group bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-lg p-3 hover:border-purple-400/50 hover:bg-white/20 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-purple-500/30 relative"
             >
-              #{number}
+              <div className="flex flex-col items-center space-y-2">
+                {/* Jersey Number Badge */}
+                <div className="absolute -top-2 -right-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-sm px-2 py-1 rounded-full shadow-lg min-w-[32px] text-center">
+                  #{player.jerseyNumber}
+                </div>
+                {/* Player Photo */}
+                <div className="w-20 h-20 bg-gradient-to-br from-purple-600/20 to-pink-600/20 rounded-2xl flex items-center justify-center overflow-hidden group-hover:from-purple-600/30 group-hover:to-pink-600/30 transition-all duration-300 shadow-lg border border-white/10 relative">
+                  <img 
+                    src={`https://a.espncdn.com/i/headshots/nfl/players/full/${player.id}.png`}
+                    alt={`${player.name} headshot`} 
+                    className="w-16 h-16 object-cover rounded-xl"
+                    onError={(e) => {
+                      // Fallback to a default player silhouette if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                  {/* Fallback icon */}
+                  <div className="fallback-icon absolute inset-0 items-center justify-center text-white/60" style={{ display: 'none' }}>
+                    <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Player Info */}
+                <div className="text-center">
+                  <div className="font-bold text-white text-lg group-hover:text-purple-300 transition-colors leading-tight">
+                    {player.name}
+                  </div>
+                  <div className="text-slate-300 font-medium mt-1 text-sm">
+                    {player.position}
+                  </div>
+                  {player.college && (
+                    <div className="text-slate-400 text-xs mt-1">
+                      {player.college}
+                    </div>
+                  )}
+                </div>
+
+                {/* Hover Arrow */}
+                <div className="opacity-0 group-hover:opacity-100 text-purple-400 transition-opacity duration-300">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </div>
             </button>
           ))}
         </div>
       </div>
-
-      {playersWithNumber.length > 0 && (
-        <div>
-          <h3 className="text-2xl font-bold text-white mb-6">Select Player</h3>
-          <div className="space-y-4">
-            {playersWithNumber.map((player: Player) => (
-              <button
-                key={player.id}
-                onClick={() => onPlayerSelect(player)}
-                className="w-full p-6 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-2xl hover:border-purple-400/50 hover:bg-white/20 text-left transition-all duration-300 transform hover:scale-[1.02] group"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-bold text-white text-xl group-hover:text-purple-300 transition-colors">
-                      {player.name}
-                    </div>
-                    <div className="text-slate-300 font-medium mt-1">
-                      #{player.jerseyNumber} • {player.position}
-                      {player.college && ` • ${player.college}`}
-                    </div>
-                  </div>
-                  <div className="text-purple-400 group-hover:text-purple-300 transition-colors">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
