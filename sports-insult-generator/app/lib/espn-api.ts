@@ -72,14 +72,30 @@ export const fetchPlayerDetails = async (sport: string, playerId: string): Promi
     const athlete = response.data.athlete
     
     return {
-      bio: athlete.bio,
-      hometown: athlete.birthPlace?.displayText,
-      college: athlete.college?.name,
-      stats: athlete.statistics || {},
+      bio: athlete?.bio || '',
+      hometown: athlete?.birthPlace?.displayText || '',
+      college: athlete?.college?.name || '',
+      stats: athlete?.statistics || {},
     }
   } catch (error) {
+    // Handle 404 errors gracefully - player may not have detailed profile
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      console.warn(`Player details not found for ${playerId} - this is normal for some players`)
+      return {
+        bio: '',
+        hometown: '',
+        college: '',
+        stats: {},
+      }
+    }
+    
     console.error(`Error fetching player details for ${playerId}:`, error)
-    return {}
+    return {
+      bio: '',
+      hometown: '',
+      college: '',
+      stats: {},
+    }
   }
 }
 
