@@ -3,9 +3,20 @@ import { Team, Player, PlayerNews } from '../types'
 
 const ESPN_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports'
 
+// Map sport abbreviations to ESPN API sport categories
+const SPORT_MAPPING: Record<string, string> = {
+  'nfl': 'football/nfl',
+  'nba': 'basketball/nba',
+  'mlb': 'baseball/mlb',
+  'nhl': 'hockey/nhl'
+}
+
 export const fetchTeams = async (sport: string): Promise<Team[]> => {
   try {
-    const response = await axios.get(`${ESPN_BASE_URL}/${sport}/teams`)
+    const sportPath = SPORT_MAPPING[sport] || sport
+    const url = `${ESPN_BASE_URL}/${sportPath}/teams`
+    
+    const response = await axios.get(url)
     return response.data.sports[0].leagues[0].teams.map((team: any) => ({
       id: team.team.id,
       name: team.team.displayName,
@@ -21,7 +32,8 @@ export const fetchTeams = async (sport: string): Promise<Team[]> => {
 
 export const fetchTeamRoster = async (sport: string, teamId: string): Promise<Player[]> => {
   try {
-    const response = await axios.get(`${ESPN_BASE_URL}/${sport}/teams/${teamId}/roster`)
+    const sportPath = SPORT_MAPPING[sport] || sport
+    const response = await axios.get(`${ESPN_BASE_URL}/${sportPath}/teams/${teamId}/roster`)
     return response.data.athletes.map((athlete: any) => ({
       id: athlete.id,
       name: athlete.displayName,
@@ -40,7 +52,8 @@ export const fetchTeamRoster = async (sport: string, teamId: string): Promise<Pl
 
 export const fetchPlayerDetails = async (sport: string, playerId: string): Promise<Partial<Player>> => {
   try {
-    const response = await axios.get(`${ESPN_BASE_URL}/${sport}/athletes/${playerId}`)
+    const sportPath = SPORT_MAPPING[sport] || sport
+    const response = await axios.get(`${ESPN_BASE_URL}/${sportPath}/athletes/${playerId}`)
     const athlete = response.data.athlete
     
     return {

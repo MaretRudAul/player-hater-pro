@@ -7,17 +7,17 @@ export async function GET(request: NextRequest) {
   const sport = searchParams.get('sport') || 'nfl'
 
   try {
-    // Check cache first
-    const cached = await redis.get(CACHE_KEYS.TEAMS(sport))
-    if (cached) {
-      return NextResponse.json(cached)
-    }
+    // TEMPORARILY BYPASS CACHE FOR DEBUGGING
+    // const cached = await redis.get(CACHE_KEYS.TEAMS(sport))
+    // if (cached) {
+    //   return NextResponse.json(JSON.parse(cached))
+    // }
 
     // Fetch from ESPN API
     const teams = await fetchTeams(sport)
     
-    // Cache the results
-    await redis.setex(CACHE_KEYS.TEAMS(sport), CACHE_TTL.TEAMS, JSON.stringify(teams))
+    // Cache the results (temporarily disabled)
+    // await redis.setex(CACHE_KEYS.TEAMS(sport), CACHE_TTL.TEAMS, JSON.stringify(teams))
     
     return NextResponse.json(teams)
   } catch (error) {
