@@ -1,48 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server'
-import redis, { CACHE_KEYS } from '../../../lib/redis'
+import redis from '../../../lib/redis'
 import { Insult } from '../../../types'
 
 export async function POST(request: NextRequest) {
   try {
-    const { insultId, voteType, playerId, weekId } = await request.json()
+    const { insultId, voteType, clientId } = await request.json()
 
-    // Get current insults
-    const insults = await redis.get(CACHE_KEYS.INSULTS(playerId, weekId))
-    if (!insults) {
-      return NextResponse.json({ error: 'Insults not found' }, { status: 404 })
+    if (!insultId || !voteType) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const insultsArray: Insult[] = JSON.parse(insults as string)
-    const insultIndex = insultsArray.findIndex((i: Insult) => i.id === insultId)
-    
-    if (insultIndex === -1) {
+    // Optional: Check for duplicate votes from same client (if clientId provided)
+    if (clientId) {
+      const voteKey = `vote:${clientId}:${insultId}`
+      const existingVote = await redis.get(voteKey)
+      if (existingVote) {
+        return NextResponse.json({ error: 'Already voted on this insult' }, { status: 409 })
+      }
+    }
+
+    // Get the insult
+    const insultData = await redis.get(`insult:${insultId}`)
+    if (!insultData) {
       return NextResponse.json({ error: 'Insult not found' }, { status: 404 })
     }
 
+    const insult: Insult = typeof insultData === 'string' ? JSON.parse(insultData) : insultData
+
     // Update vote count
     if (voteType === 'upvote') {
-      insultsArray[insultIndex].upvotes += 1
+      insult.upvotes += 1
     } else if (voteType === 'downvote') {
-      insultsArray[insultIndex].downvotes += 1
+      insult.downvotes += 1
+    } else {
+      return NextResponse.json({ error: 'Invalid vote type' }, { status: 400 })
     }
 
-    // Save back to cache
-    await redis.set(CACHE_KEYS.INSULTS(playerId, weekId), JSON.stringify(insultsArray))
+    // Save updated insult
+    await redis.set(`insult:${insultId}`, JSON.stringify(insult))
 
-    // Update top insults ranking
-    await updateTopInsults(playerId, weekId, insultsArray)
+    // Record the vote to prevent duplicates (if clientId provided)
+    if (clientId) {
+      const voteKey = `vote:${clientId}:${insultId}`
+      await redis.setex(voteKey, 604800, voteType) // 1 week expiry
+    }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ 
+      success: true, 
+      upvotes: insult.upvotes, 
+      downvotes: insult.downvotes 
+    })
   } catch (error) {
     console.error('Vote API Error:', error)
     return NextResponse.json({ error: 'Failed to record vote' }, { status: 500 })
   }
-}
-
-async function updateTopInsults(playerId: string, weekId: string, insults: Insult[]) {
-  const topInsults = insults
-    .sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes))
-    .slice(0, 5)
-
-  await redis.set(CACHE_KEYS.TOP_INSULTS(playerId, weekId), JSON.stringify(topInsults))
 }

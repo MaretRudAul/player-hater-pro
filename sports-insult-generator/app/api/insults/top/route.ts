@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import redis, { CACHE_KEYS } from '../../../lib/redis'
+import redis from '../../../lib/redis'
 import { getWeekId } from '../../../lib/utils'
 import { Insult } from '../../../types'
 
@@ -13,24 +13,45 @@ export async function GET(request: NextRequest) {
 
   try {
     const weekId = getWeekId()
-    const topInsults = await redis.get(CACHE_KEYS.TOP_INSULTS(playerId, weekId))
-    
-    if (!topInsults) {
-      // If no top insults, get regular insults and sort them
-      const regularInsults = await redis.get(CACHE_KEYS.INSULTS(playerId, weekId))
-      if (regularInsults) {
-        const insults: Insult[] = JSON.parse(regularInsults as string)
-        const sorted = insults
-          .sort((a: Insult, b: Insult) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes))
-          .slice(0, 5)
-        
-        await redis.set(CACHE_KEYS.TOP_INSULTS(playerId, weekId), JSON.stringify(sorted))
-        return NextResponse.json(sorted)
+    const result: Insult[] = []
+
+    // Get all insults from this week
+    const allInsultIds = await redis.lrange(`global_insults:${weekId}`, 0, -1)
+    const allInsults: Insult[] = []
+
+    for (const id of allInsultIds) {
+      const insultData = await redis.get(`insult:${id}`)
+      if (insultData) {
+        const insult: Insult = typeof insultData === 'string' ? JSON.parse(insultData) : insultData
+        allInsults.push(insult)
       }
-      return NextResponse.json([])
     }
 
-    return NextResponse.json(JSON.parse(topInsults as string))
+    // Get top 3 roasts by (upvotes - downvotes) across all players
+    const topRoasts = allInsults
+      .sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes))
+      .slice(0, 3)
+
+    result.push(...topRoasts)
+
+    // Get 2 most recent roasts (regardless of votes)
+    const recentRoasts = allInsults
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 2)
+
+    result.push(...recentRoasts)
+
+    // Remove duplicates while preserving order
+    const seen = new Set()
+    const uniqueResult = result.filter(insult => {
+      if (seen.has(insult.id)) {
+        return false
+      }
+      seen.add(insult.id)
+      return true
+    })
+
+    return NextResponse.json(uniqueResult)
   } catch (error) {
     console.error('Top Insults API Error:', error)
     return NextResponse.json({ error: 'Failed to fetch top insults' }, { status: 500 })

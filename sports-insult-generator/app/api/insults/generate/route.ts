@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateInsults } from '@/app/lib/openai'
 import { fetchPlayerDetails, fetchPlayerNews, fetchTeamRoster, fetchTeams } from '@/app/lib/espn-api'
-import redis, { CACHE_KEYS, CACHE_TTL } from '@/app/lib/redis'
+import redis, { CACHE_TTL } from '@/app/lib/redis'
 import { getWeekId } from '@/app/lib/utils'
 import { PlayerNews } from '@/app/types'
 
 export async function POST(request: NextRequest) {
   try {
-    const { playerId, teamId, sport = 'nfl' } = await request.json()
+    const { playerId, teamId, sport = 'nfl', clientId } = await request.json()
 
     if (!playerId || !teamId) {
       return NextResponse.json(
@@ -17,13 +17,6 @@ export async function POST(request: NextRequest) {
     }
 
     const weekId = getWeekId()
-    const cacheKey = CACHE_KEYS.INSULTS(playerId, weekId)
-
-    // Check if insult already exists for this player this week
-    const cachedInsult = await redis.get(cacheKey)
-    if (cachedInsult) {
-      return NextResponse.json(cachedInsult)
-    }
 
     // Fetch team roster to get basic player info
     const teamRoster = await fetchTeamRoster(sport, teamId)
@@ -58,9 +51,9 @@ export async function POST(request: NextRequest) {
     // Select a random insult from the generated list
     const insultText = insults[Math.floor(Math.random() * insults.length)]
 
-    // Create insult object
+    // Create insult object with unique ID
     const insult = {
-      id: `${playerId}-${weekId}-${Date.now()}`,
+      id: `${playerId}-${weekId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       playerId,
       teamId,
       text: insultText,
@@ -71,17 +64,30 @@ export async function POST(request: NextRequest) {
       player: {
         name: player.name,
         position: player.position || 'Unknown',
-        team: teamName
+        team: teamName,
+        jerseyNumber: player.jerseyNumber || 0
       }
     }
 
-    // Cache the insult
-    await redis.setex(cacheKey, CACHE_TTL.INSULTS, JSON.stringify(insult))
+    // Store individual insult
+    await redis.setex(`insult:${insult.id}`, CACHE_TTL.INSULTS, JSON.stringify(insult))
 
-    // Also add to weekly insults list for cleanup
-    const weeklyInsultsKey = `weekly_insults:${weekId}`
-    await redis.sadd(weeklyInsultsKey, insult.id)
-    await redis.expire(weeklyInsultsKey, CACHE_TTL.INSULTS)
+    // Add to player's insults list
+    const playerInsultsKey = `player_insults:${playerId}:${weekId}`
+    await redis.sadd(playerInsultsKey, insult.id)
+    await redis.expire(playerInsultsKey, CACHE_TTL.INSULTS)
+
+    // Add to client-specific insults list if clientId provided
+    if (clientId) {
+      const clientInsultsKey = `client_insults:${clientId}:${playerId}`
+      await redis.lpush(clientInsultsKey, insult.id)
+      await redis.expire(clientInsultsKey, CACHE_TTL.INSULTS)
+    }
+
+    // Add to global insults list for recent roasts
+    const globalInsultsKey = `global_insults:${weekId}`
+    await redis.lpush(globalInsultsKey, insult.id)
+    await redis.expire(globalInsultsKey, CACHE_TTL.INSULTS)
 
     return NextResponse.json(insult)
   } catch (error) {

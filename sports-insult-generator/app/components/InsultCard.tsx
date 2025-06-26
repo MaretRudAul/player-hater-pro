@@ -9,13 +9,17 @@ interface InsultCardProps {
   onVote?: (insultId: string, voteType: 'up' | 'down') => void;
   showVoting?: boolean;
   isVoting?: boolean;
+  rank?: number;
+  hasVoted?: boolean;
 }
 
 export default function InsultCard({ 
   insult, 
   onVote, 
   showVoting = true, 
-  isVoting = false 
+  isVoting = false,
+  rank,
+  hasVoted = false
 }: InsultCardProps) {
   const [localVotes, setLocalVotes] = useState({
     upvotes: insult.upvotes,
@@ -25,7 +29,7 @@ export default function InsultCard({
   const [votingState, setVotingState] = useState<'up' | 'down' | null>(null);
 
   const handleVote = async (voteType: 'up' | 'down') => {
-    if (!onVote || isVoting || votingState) return;
+    if (!onVote || isVoting || votingState || hasVoted) return;
 
     setVotingState(voteType);
 
@@ -72,11 +76,18 @@ export default function InsultCard({
 
   return (
     <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/10 p-8 hover:shadow-purple-500/20 transition-all duration-500 transform hover:scale-[1.02]">
+      {/* Rank Badge */}
+      {rank && (
+        <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-xl border-4 border-white/20">
+          #{rank}
+        </div>
+      )}
+      
       {/* Player Info Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
           <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
-            #{insult.playerId.slice(-2)}
+            #{insult.player.jerseyNumber || '??'}
           </div>
           <div>
             <h3 className="font-bold text-white text-xl">{insult.player.name}</h3>
@@ -119,13 +130,15 @@ export default function InsultCard({
           <div className="flex items-center space-x-4">
             <button
               onClick={() => handleVote('up')}
-              disabled={isVoting || votingState !== null}
+              disabled={isVoting || votingState !== null || hasVoted}
               className={`group flex items-center space-x-3 px-6 py-3 rounded-2xl font-bold transition-all duration-300 transform hover:scale-110 ${
                 userVote === 'up'
                   ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-xl shadow-green-500/30 ring-4 ring-green-400/30'
+                  : hasVoted
+                  ? 'bg-gray-500/50 text-gray-400 cursor-not-allowed border-2 border-gray-500/30'
                   : 'bg-white/10 backdrop-blur-sm text-white border-2 border-white/20 hover:border-green-400/50 hover:bg-green-500/20'
               } ${
-                isVoting || votingState ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl'
+                isVoting || votingState || hasVoted ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl'
               }`}
             >
               <svg 
@@ -144,13 +157,15 @@ export default function InsultCard({
 
             <button
               onClick={() => handleVote('down')}
-              disabled={isVoting || votingState !== null}
+              disabled={isVoting || votingState !== null || hasVoted}
               className={`group flex items-center space-x-3 px-6 py-3 rounded-2xl font-bold transition-all duration-300 transform hover:scale-110 ${
                 userVote === 'down'
                   ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-xl shadow-red-500/30 ring-4 ring-red-400/30'
+                  : hasVoted
+                  ? 'bg-gray-500/50 text-gray-400 cursor-not-allowed border-2 border-gray-500/30'
                   : 'bg-white/10 backdrop-blur-sm text-white border-2 border-white/20 hover:border-red-400/50 hover:bg-red-500/20'
               } ${
-                isVoting || votingState ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl'
+                isVoting || votingState || hasVoted ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl'
               }`}
             >
               <svg 

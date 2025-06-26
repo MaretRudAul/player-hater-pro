@@ -32,6 +32,7 @@ export interface Insult {
     name: string;
     position: string;
     team: string;
+    jerseyNumber: number;
   };
 }
 

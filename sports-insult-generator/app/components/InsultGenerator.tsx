@@ -1,10 +1,15 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import InsultCard from './InsultCard'
 import { Player, Insult } from '../types'
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
+
+// Generate a unique client ID for this session
+function generateClientId(): string {
+  return 'client_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+}
 
 interface InsultGeneratorProps {
   player: Player
@@ -13,15 +18,36 @@ interface InsultGeneratorProps {
 
 export default function InsultGenerator({ player, sport }: InsultGeneratorProps) {
   const [view, setView] = useState<'top' | 'new'>('top')
-  const [newInsults, setNewInsults] = useState<Insult[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
+  const [votedInsults, setVotedInsults] = useState<Set<string>>(new Set())
+
+  // Get or create persistent client ID
+  const persistentClientId = useMemo(() => {
+    if (typeof window === 'undefined') return ''
+    
+    let id = sessionStorage.getItem('player-hater-client-id')
+    if (!id) {
+      id = generateClientId()
+      sessionStorage.setItem('player-hater-client-id', id)
+    }
+    return id
+  }, [])
 
   const { data: topInsults, mutate: mutateTop } = useSWR(
     `/api/insults/top?playerId=${player.id}`,
     fetcher
   )
 
+  const { data: playerInsults, mutate: mutatePlayer } = useSWR(
+    persistentClientId ? `/api/insults/player?playerId=${player.id}&clientId=${persistentClientId}` : null,
+    fetcher
+  )
+
   const generateNewInsults = async () => {
+    if (!persistentClientId) {
+      return
+    }
+    
     setIsGenerating(true)
     try {
       const response = await fetch('/api/insults/generate', {
@@ -29,14 +55,25 @@ export default function InsultGenerator({ player, sport }: InsultGeneratorProps)
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           playerId: player.id,
-          playerName: player.name,
+          teamId: player.teamId,
           sport: sport,
+          clientId: persistentClientId, // Include client ID for session tracking
         }),
       })
 
-      const data = await response.json()
-      setNewInsults(data.insults)
+      if (!response.ok) {
+        throw new Error('Failed to generate insult')
+      }
+
+      await response.json() // Just wait for the response, don't store it
+      
+      // Switch to session view and refresh both data sources
       setView('new')
+      // Small delay to ensure the API call completed
+      setTimeout(() => {
+        mutatePlayer() // Refresh player-specific insults
+        mutateTop() // Refresh top insults  
+      }, 100)
     } catch (error) {
       console.error('Error generating insults:', error)
     } finally {
@@ -45,39 +82,48 @@ export default function InsultGenerator({ player, sport }: InsultGeneratorProps)
   }
 
   const handleVote = async (insultId: string, voteType: 'up' | 'down') => {
+    // Check if already voted on this insult
+    if (votedInsults.has(insultId)) {
+      console.log('Already voted on this insult')
+      return
+    }
+
     try {
-      await fetch('/api/insults/vote', {
+      const response = await fetch('/api/insults/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           insultId,
-          voteType,
-          playerId: player.id,
-          weekId: getWeekId(),
+          voteType: voteType === 'up' ? 'upvote' : 'downvote',
+          clientId: persistentClientId, // Include client ID for duplicate prevention
         }),
       })
 
-      // Update both views
-      if (view === 'new') {
-        setNewInsults(prev => prev.map(insult => 
-          insult.id === insultId 
-            ? { 
-                ...insult, 
-                [voteType === 'up' ? 'upvotes' : 'downvotes']: 
-                  insult[voteType === 'up' ? 'upvotes' : 'downvotes'] + 1 
-              }
-            : insult
-        ))
-      }
+      const result = await response.json()
       
-      // Refresh top insults after vote
+      if (!response.ok) {
+        if (response.status === 409) {
+          // Already voted - mark as voted locally and return silently
+          setVotedInsults(prev => new Set([...prev, insultId]))
+          return
+        }
+        throw new Error(result.error || 'Failed to vote')
+      }
+
+      // Mark as voted locally
+      setVotedInsults(prev => new Set([...prev, insultId]))
+
+      // Update local state with new vote counts - SWR will handle data refresh
+      
+      // Refresh both data sources after vote
       mutateTop()
+      mutatePlayer()
     } catch (error) {
       console.error('Error voting:', error)
     }
   }
 
-  const currentInsults = view === 'top' ? (topInsults || []) : newInsults
+  const currentInsults = view === 'top' ? (topInsults || []) : (playerInsults || [])
 
   return (
     <div className="space-y-8">
@@ -97,7 +143,7 @@ export default function InsultGenerator({ player, sport }: InsultGeneratorProps)
                 <span>Generating...</span>
               </div>
             ) : (
-              '🔥 Generate New Roasts'
+              '🔥 Generate More Roasts'
             )}
           </span>
         </button>
@@ -112,7 +158,7 @@ export default function InsultGenerator({ player, sport }: InsultGeneratorProps)
               : 'text-slate-300 hover:text-white hover:bg-white/10'
           }`}
         >
-          🏆 Top 5 This Week ({(topInsults || []).length})
+          🏆 Top & Recent ({(topInsults || []).length})
         </button>
         <button
           onClick={() => setView('new')}
@@ -122,7 +168,7 @@ export default function InsultGenerator({ player, sport }: InsultGeneratorProps)
               : 'text-slate-300 hover:text-white hover:bg-white/10'
           }`}
         >
-          ⚡ Latest Batch ({newInsults.length})
+          ⚡ Your Session ({(playerInsults || []).length})
         </button>
       </div>
 
@@ -142,36 +188,23 @@ export default function InsultGenerator({ player, sport }: InsultGeneratorProps)
               <div className="text-slate-400">
                 {view === 'top' 
                   ? 'Generate some savage content to get the leaderboard started!'
-                  : 'Click "Generate New Roasts" to create fresh material!'
+                  : 'Click "Generate More Roasts" to create fresh material!'
                 }
               </div>
             </div>
           </div>
         ) : (
-          currentInsults.map((insult: Insult) => (
+          currentInsults.map((insult: Insult, index: number) => (
             <InsultCard
               key={insult.id}
               insult={insult}
               onVote={handleVote}
+              rank={view === 'top' ? index + 1 : undefined}
+              hasVoted={votedInsults.has(insult.id)}
             />
           ))
         )}
       </div>
     </div>
   )
-}
-
-function getWeekId(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const week = getWeekNumber(now)
-  return `${year}-${week.toString().padStart(2, '0')}`
-}
-
-function getWeekNumber(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const dayNum = d.getUTCDay() || 7
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
 }
