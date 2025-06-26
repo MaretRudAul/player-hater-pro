@@ -14,8 +14,8 @@ export const generateInsults = async (
   playerBio: string,
   recentNews: string[]
 ): Promise<string[]> => {
-  const prompt = `
-Generate 5 creative, humorous, and playfully sarcastic insults for ${playerName}, a professional athlete.
+  const prompt = (process.env.AI_PROMPT || '') + `
+Generate 5 creative, extremely vile and mean, extremely concise insults for ${playerName}, a professional athlete.
 
 Player Information:
 - Stats: ${JSON.stringify(playerStats)}
@@ -24,12 +24,14 @@ Player Information:
 
 Guidelines:
 - Keep insults sports-related and performance-based
-- Use stats, college, hometown, or recent news as material
-- Make them witty but not mean-spirited or personal attacks
+- Use stats, college, hometown, or recent news as material. This is extremely important. Make it personal to their sports career. Use specific numbers
 - Avoid anything related to appearance, family, or sensitive topics
 - Focus on performance, team loyalty, career moves, or funny incidents
-- Each insult should be 1-2 sentences maximum
+- Each insult should be 1 sentences maximum
 - Make them quotable and shareable
+- Avoid any concepts or statements that could be seen as defamatory. This is of the utmost importance, more than any other requirement.
+- These insults should be in the second person, directed at the player. Ideal for shouting at them from the sideline of a sports game. This is important.
+- Try to be as vile as possible. Like league of legends toxicity.
 
 Format as a JSON array of 5 strings.
 `
